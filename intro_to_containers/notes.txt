@@ -1,0 +1,142 @@
+Containers are basically a few features of linux duct taped together.
+Its just a few features of linux together to achieve isolation.
+
+Why do we need containers?
+
+In public cloud VMs we are paying the cost of running a whole bunch
+of OSs on the host system and it would be better if we could just
+run the code without the additional resource consumption of resources
+by running alot of guest operating systems.
+
+Containers are lightweight versions of virtual machines.
+
+So we dump an entire file system  into a container and run them on
+our host system.
+
+What is a container?
+
+A container is 3 kernel features put together.
+
+- chroot (change root) : If I have two people using the same virtual machine, they can probably
+look at each others files. That leads to various security issues. What chroot does is that it
+sets the root directory in a new location so the user cannot see anything outside of it.
+So i can create a new folder for the user and set that as their root dir and another for
+another user and so on. So you're jailing a proces too an existing operating system.
+
+A simple exercise could be as follows:
+
+cd /
+mkdir my-new-root
+cd my-new-root
+mkdir bin
+cd ..
+cp /bin/bash /my-new-root/bin # here we are copying the bash program to be used in the new root since we wont be able to do so if root is changed.
+chroot /my-new-root/ bash # this will not run sinc we haven't added its dependencies(libraries) and yopu can simply copy them and paste them into the respective lib or lib64 folders.
+... and keep going for commands like ls, cat, etcetera for setting up a jailed bash.
+
+- namespaces : Two chroot'd environments running side by side can still see each other's processes by running something like ps aux. This means that we
+can kill processes of one jailed process from another jailed process.
+
+Instead of manually copy pasting stuff into a chroot folder you can use debootstrap which is a tool that can create a fully chrootable env
+inside any folder like this:
+lets say i have a folder called better-root/
+
+I can run : 
+debootstrap --variant=minbase bionic  /better-root
+
+to setup a minimal chrootable end inside the folder.
+
+Then I'll have to unshare stuff
+
+unshare --mount --uts --ipc --net --pid --fork --user --map-root-user chroot /better-root bash
+and then the following in the chroot'd env.
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t tmpfs none/tmp
+
+to mount stuff.
+
+- cgroups : How to limit resources to containers? Problem arose at Google when multiple teams were using their own containers
+what happened was even though they couldn't access each other filesystems or processes, a runaway program on one container
+could end up crashing the whole server and hence disrupt the work of the other team on the other container.
+
+the solution was to create something that could allocate a set of resources to each container and set a cap on it.
+
+So if I am running a hosting service I can create all these containers that are unshared and have access to separate resources
+so that they dont interrupt each other's stuff.
+
+inside an unshared container:
+
+apt install -y cgroup-tools htop
+
+cgcreate -g cpu,memory,blkio,devices,freezer:/sandbox #will create a new cgroup
+
+cgclassify -g cpu,memory,blkio,devices,freezer:sandbox <PID> #will move the process to a control group.
+..look up rest of the stuff.
+
+Docker basically takes a docker image and created a chrootable envinronment with it kinda like how we were doing with setting up a folder's own bin, lib and lib64 stuff, unsharing, etc.
+
+DOCKER IMAGES WITH DOCKER: 
+
+docker pull alpine:3.10
+docker run -it alpine:3.10
+
+if I dont  add -it it will just run alpine and then close it
+
+I could also do something like docker run alpine:3.10 ls
+which will load up the alpine container, run ls in the root directory and the destroy the container.
+
+so -it allows us to interact with out spun up container.
+
+docker image prune will clear up some memory taken up by builds.
+
+docker run -it --detach ubuntu:bionic # will run a detached interactive shell of ubuntu that will run in the background it spits out a hash
+
+I can run docker ps to see all running containers in the system
+
+and use docker attach <name/hash> to attach myself to that container
+
+you can use docker kill command to kill containers.
+
+docker run -it --name hamzas-alpine alpine:3.10
+docker logs hamza-alpine #gives us logs for the container names hamza-alpine
+docker rm hamza-alpine #removes all references of hamza-alpine
+
+docker run -it --name hamzas-alpine --rm alpine:3.10 # will rm hamzas-alpine as soon as we exit out of it.
+
+NODE.JS ON DOCKER
+
+
+docker run -it node:12-stretch bash # will throw you into a shell for the latest debian LTS with node v 12
+docker run -it node:12-stretch #will do the same thing but throw you into a node.js repl.
+
+if i just ran  docker run -it node it will run docker run -it node:latest implicitly.
+
+I could also run docker run node:12-alpine to get a node repl running on alpine.
+
+Always explicitly mention the tags for your docker container.
+
+DOCKER CLI
+
+- docker pull jturpin/hollywood
+- docker run -it jturpin/hollywood Hollywood
+- docker inspect node:12-stretch #spits out a bunch of information about an image.
+- docker run -dir node:12-stretch will run a detach interactive version.
+- docker pause <container name> and it will pause a container.
+- docker unpause <container name> will unpause the container.
+- docker kill <container name> will kill the container.
+- docker run will spin up a new container.
+- docker exec <container name> ps aux will run ps aux on an exisiting container
+- docker history node:12-stretch will show all the changes in the history of the image
+- docker info
+- docker top <container name> will run top on the existing running container.
+- docker rmi mongo #will remove the mongodb container image
+- docker container prune # will remove all stopped containers.
+- docker image prune will #will remove all images
+- docker image list #will show all locally available images
+- docker restart <container name> #will restart the container
+- docker search <term> #will search for images on dockerhub.
+
+DOCKERFILES
+
+
