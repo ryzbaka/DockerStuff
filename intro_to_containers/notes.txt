@@ -138,5 +138,48 @@ DOCKER CLI
 - docker search <term> #will search for images on dockerhub.
 
 DOCKERFILES
+Allow us to provide instructions to build a docker container according to our custom config
+the container can use an existing container from docker hub as the base for the new
+custom container.
 
+-> create a file called Dockerfile in a directory
+-> inside the Dockerfile file enter the following
+FROM ubuntu:latest
+CMD ["echo","hello"]
+-> save and exit
+-> run sudo docker build --tag somebuntu .
+-> this will create a container called somebuntu:latest
+-> if you run sudo docker run somebuntu:latest you'll get the following result:
+hello
 
+you can also deploy your node.js application as a container
+check the build-nodejs-app folder to see the docker file and index.js files.
+
+if you run docker run buildname:latest your index.js server will run inside the container but since the network hasn't been shared
+with it it wont be accessible through the specified port since the host OS hasn't shared the network with the docker container.
+
+also if you press ctrl+c it won't close the server application
+
+so do docker run --init buildname:latest to be able to stop the application using ctrl+c
+
+so to be able to access the containers port I should run
+
+sudo docker run --init --publish 3000:3000 buildname:latest
+
+and if i access the host os's 3000 port I can do so.
+
+If I had to map the container's 3000 port to the jost OS's 4500 port I could do that by running this instead
+
+sudo docker run --init --publish 4500:3000 buildname:latest
+
+adding USER node in the dockerfile as in the build-a-nodejs-app Dockerfile will run the node.js application as that user
+hence you'll notice there is a chown in the COPY instruction.
+
+The ADD instruction works not only with containerising files on the local file system but can also pull files from the network
+The WORKDIR instruction specifies the working directory in which we want to execute the next instructions
+It also creates all directories as root so that could lead to some permission errors
+
+it is recommended to use RUN instruction to first create the said directory as the user and then go ahead and set that as WORKDIR
+
+to install node modules for an application you can use the RUN instruction to npm ci  packages as in the package-lock.json as 
+the packages mentioned there are version locked.
